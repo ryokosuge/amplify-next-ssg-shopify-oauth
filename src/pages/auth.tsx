@@ -11,10 +11,10 @@ const Page: NextPage<Props> = () => (
 export const getServerSideProps: GetServerSideProps<Props> = async (context) => {
 	const session = await Shopify.Utils.loadCurrentSession(context.req, context.res, true);
 	if (session != null) {
-		console.log(session);
 		return {
-			props: {
-				session,
+			redirect: {
+				statusCode: 302,
+				destination: "/"
 			}
 		};
 	}
