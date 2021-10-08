@@ -3,11 +3,31 @@ import Head from 'next/head'
 import Image from 'next/image'
 import styles from '../styles/Home.module.css'
 
+import Shopify, { ApiVersion } from "@shopify/shopify-api";
+import { Session } from '@shopify/shopify-api/dist/auth/session';
+
 type Props = {
-  name: string
+  session: {
+    shop: string;
+    state: string;
+    scope: string;
+    accessToken?: string;
+    onlineAccessInfo?: {
+      associatedUser: {
+        id: number;
+        firstName: string;
+        lastName: string;
+        email: string;
+        emailVerified: boolean;
+        accountOwner: boolean;
+        locale: string;
+        collaborator: boolean;
+      };
+    };
+  };
 }
 
-const Home: NextPage<Props> = ({ name }) => (
+const Home: NextPage<Props> = ({ session }) => (
   <div className={styles.container}>
     <Head>
       <title>Create Next App</title>
@@ -20,44 +40,32 @@ const Home: NextPage<Props> = ({ name }) => (
         Welcome to <a href="https://nextjs.org">Next.js!</a>
       </h1>
 
-      <p className={styles.description}>
-        Get started by editing{' '}
-        <code className={styles.code}>src/pages/index.tsx</code>
-      </p>
-
-      <p className={styles.description}>
-        Server side props.name = {name}
-      </p>
-
-      <div className={styles.grid}>
-        <a href="https://nextjs.org/docs" className={styles.card}>
-          <h2>Documentation &rarr;</h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a href="https://nextjs.org/learn" className={styles.card}>
-          <h2>Learn &rarr;</h2>
-          <p>Learn about Next.js in an interactive course with quizzes!</p>
-        </a>
-
-        <a
-          href="https://github.com/vercel/next.js/tree/master/examples"
-          className={styles.card}
-        >
-          <h2>Examples &rarr;</h2>
-          <p>Discover and deploy boilerplate example Next.js projects.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          className={styles.card}
-        >
-          <h2>Deploy &rarr;</h2>
-          <p>
-            Instantly deploy your Next.js site to a public URL with Vercel.
-          </p>
-        </a>
-      </div>
+      <dl className={styles.description}>
+        <dt>shop</dt>
+        <dd>{session.shop}</dd>
+        <dt>state</dt>
+        <dd>{session.state}</dd>
+        <dt>scope</dt>
+        <dd>{session.scope}</dd>
+        <dt>accessToken</dt>
+        <dd>{session.accessToken ?? "-"}</dd>
+        <dt>accessInfo.user.id</dt>
+        <dd>{session.onlineAccessInfo?.associatedUser.id}</dd>
+        <dt>accessInfo.user.firstName</dt>
+        <dd>{session.onlineAccessInfo?.associatedUser.firstName}</dd>
+        <dt>accessInfo.user.lastName</dt>
+        <dd>{session.onlineAccessInfo?.associatedUser.lastName}</dd>
+        <dt>accessInfo.user.email</dt>
+        <dd>{session.onlineAccessInfo?.associatedUser.email}</dd>
+        <dt>accessInfo.user.emailVerified</dt>
+        <dd>{`${session.onlineAccessInfo?.associatedUser.emailVerified}`}</dd>
+        <dt>accessInfo.user.accountOwner</dt>
+        <dd>{`${session.onlineAccessInfo?.associatedUser.accountOwner}`}</dd>
+        <dt>accessInfo.user.locale</dt>
+        <dd>{session.onlineAccessInfo?.associatedUser.locale}</dd>
+        <dt>accessInfo.user.collaborator</dt>
+        <dd>{`${session.onlineAccessInfo?.associatedUser.collaborator}`}</dd>
+      </dl>
     </main>
 
     <footer className={styles.footer}>
@@ -76,11 +84,38 @@ const Home: NextPage<Props> = ({ name }) => (
 );
 
 export const getServerSideProps: GetServerSideProps<Props> = async (context) => {
-  console.log(context);
-  const name = Array.isArray(context.query.name) ? context.query.name[0] : context.query.name;
+  const session = await Shopify.Utils.loadCurrentSession(context.req, context.res, true);
+  if (session != null) {
+    console.log(session);
+    return {
+      props: {
+        session: {
+          shop: session.shop,
+          state: session.state,
+          scope: session.scope,
+          accessToken: session.accessToken,
+          onlineAccessInfo: session.onlineAccessInfo == null ? undefined : {
+            associatedUser: {
+              id: session.onlineAccessInfo.associated_user.id,
+              firstName: session.onlineAccessInfo.associated_user.first_name,
+              lastName: session.onlineAccessInfo.associated_user.last_name,
+              email: session.onlineAccessInfo.associated_user.email,
+              emailVerified: session.onlineAccessInfo.associated_user.email_verified,
+              accountOwner: session.onlineAccessInfo.associated_user.account_owner,
+              locale: session.onlineAccessInfo.associated_user.locale,
+              collaborator: session.onlineAccessInfo.associated_user.collaborator,
+            },
+          },
+        },
+      },
+    };
+  }
+
+  const authRoute = await Shopify.Auth.beginAuth(context.req, context.res, process.env.SHOP, '/auth/callback', true);
   return {
-    props: {
-      name: name ?? "default"
+    redirect: {
+      statusCode: 302,
+      destination: authRoute,
     }
   }
 };
